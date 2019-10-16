@@ -3,6 +3,19 @@
 #include <sys/time.h>
 
 
+struct ficha_de_aluno {
+    int direcao;
+    int posicao;
+} particula;
+
+
+int numero_aleatorio() {
+	return ( rand() % 5 );
+}
+
+
+
+
 int ** alocando_matriz_inicial( int n ) {
     int i, j;
     int ** curr = (int **) malloc( sizeof( int * ) * n );
@@ -16,24 +29,30 @@ int ** alocando_matriz_inicial( int n ) {
 }
 
 
-int ** iniciar_particulas( int **curr, int n, int np ) {
+int *iniciar_particulas( int *particulas, int np ) {
     int i, j; 
-    int particulas = 0, valor_particula;
-    while(particulas <= np) {
-        for( i=0; i < n; i++ ) {
-            for( j=0; j < n; j++ ) {
-                if(particulas <= np && curr[i][j] == 0) {
-                    valor_particula = numero_aleatorio();
-                    particulas++;
-                    curr[i][j] = valor_particula;
-                }   
-                if(particulas == np){
-                    return curr;
-                }
-            }
-        }
+
+    for( i=0; i < np; i++ ) {
+        particulas[i].direcao = numero_aleatorio();
     }
-    return curr;
+    
+    return particulas;
+}
+
+
+int  alocando_vetor_particulas( int *particulas, int n, int np ) {
+    int i;
+    int * particulas = (int *) malloc( sizeof( int ) * np );
+    for( i=0; i < n; i++ ) {
+        particulas[i] = (particula) malloc( sizeof( particula ) );
+    }
+    return particulas;
+}
+
+void hpp () {
+    int i;
+
+
 }
 
 
@@ -42,10 +61,9 @@ void copia_curr_para_next( int * destino_mat, int * origem_mat, int n ) {
 }
 
 
-void hpp( int N, int n, int **curr, int **next, int deno ) {
+void hpp( int N, int n, int **curr, int **next, int np ) {
     int i, j, k;
-    int np = (n*n)/deno;
-
+    
     int indo_esquerda = 1, indo_direita = 2, indo_baixo = 3, indo_cima = 4, vazio = 0;
     int parade_esquerda = 0, parede_direita = (n-1), parede_baixo = (n-1), parede_cima = 0;
 
@@ -118,11 +136,6 @@ void hpp( int N, int n, int **curr, int **next, int deno ) {
 }
 
 
-int numero_aleatorio() {
-	return ( rand() % 5 );
-}
-
-
 int main() {
     // n x n tamanho da matrix
     // N numero de interacoes
@@ -130,12 +143,14 @@ int main() {
     // next matriz obtida a partir de curr
 
     int n, N, deno;
-    int **curr, **next;
+    int *particulas, *next;
+    int deno;
+    int np = (n*n)/deno;
 
     N = 100;
 
     srand( (unsigned)time(0) );
 
-    hpp( N, n, curr, next, deno);
+    hpp( N, n, curr, next, np);
 
 }
