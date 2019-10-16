@@ -57,12 +57,14 @@ void hpp ( int *particulas, int *next, int N, int np, int n ) {
     int i, j, k;
     int parade_esquerda
     particula atual;
+    int flag;
 
     int indo_esquerda = 1, indo_direita = 2, indo_baixo = 3, indo_cima = 4, vazio = 0;
     int parede_horizontal, parede_vertical;
 
     for( i=0; i < N; i++ ) {
         for( j=0; j < np; j++) {
+            flag = 0;
             atual = particulas[i];
             parede_horizontal = checkParedeLados(atual.posicao);
             if(atual.direcao == indo_esquerda && parede_horizontal == 0){
@@ -81,6 +83,7 @@ void hpp ( int *particulas, int *next, int N, int np, int n ) {
                 for( k=0; k < np; k++) {
                     if(atual.posicao == particulas[k].posicao && atual.id != particulas[k].id){
                         if( atual.direcao == indo_esquerda ) {
+                            flag = 1;
                             particulas[k].direcao == indo_direita;
                             if(atual.posicao > n-1){
                                 atual.posicao = atual.posicao - n;
@@ -91,6 +94,7 @@ void hpp ( int *particulas, int *next, int N, int np, int n ) {
                             }
                         }
                         else if( atual.direcao == indo_direita ) {
+                            flag = 1;
                             particulas[k].direcao == indo_esquerda;
                             if(atual.posicao < (n*n)-n){
                                 atual.posicao = atual.posicao + n;
@@ -121,6 +125,20 @@ void hpp ( int *particulas, int *next, int N, int np, int n ) {
                             }
                         }
                     }
+                }
+            }
+            if(flag == 0) {
+                if( atual.direcao == indo_esquerda && parede_horizontal > 0 ) {
+                    atual.posicao = atual.posicao - 1;
+                }
+                else if( atual.direcao == indo_direita && parede_horizontal < n-1 ) {
+                    atual.posicao = atual.posicao + 1;
+                }
+                else if( atual.direcao == indo_cima && atual.posicao > n-1 ) {
+                    atual.posicao = atual.posicao - n;
+                }
+                else if( atual.direcao == indo_baixo && atual.posicao <= n*n-n ) {
+                    atual.posicao = atual.posicao + n;
                 }
             }
             next[i] = atual;
