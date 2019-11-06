@@ -1,72 +1,70 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <time.h>
+#include <omp.h>
 
 
-struct ficha_de_aluno {
+typedef struct ficha_de_aluno {
     int direcao;
     int posicao;
     int id;
 } particula;
 
 
-void copia_curr_para_next( int * destino_mat, int * origem_mat, int n ) {
-  memcpy( destino_mat, origem_mat, n * n * sizeof(int) );
-}
-
-int *copia_particulas_para_next( int * destino_mat, int * origem_mat, int np ) {
-    for( i=0; i < np; i++ ) {
-        next[i] = particulas[i];
+particula *copia_particulas_para_next( particula * destino_mat, particula * origem_mat, int np ) {
+    for( int i=0; i < np; i++ ) {
+        destino_mat[i] = origem_mat[i];
     }
-    return next;
+    return destino_mat;
 }
 
 
-int numero_aleatorio( int intervalo) {
-	return ( rand() % intervalo );
+int numero_aleatorio( int intervalo, int aux) {
+	return ( rand() % intervalo + aux );
 }
 
 
-int *iniciar_particulas( int *particulas, int np, int n_posicoes ) {
+particula *iniciar_particulas( particula *particulas, int np, int n_posicoes ) {
     int i, j; 
     int posicoes = 0;
 
     for( i=0; i < np; i++ ) {
         particulas[i].id = i;
-        particulas[i].direcao = numero_aleatorio(5);
-        particulas[i].posicao = numero_aleatorio(n_posicoes);
+        particulas[i].direcao = numero_aleatorio(5, 1);
+        particulas[i].posicao = numero_aleatorio(n_posicoes, 0);
     }
     return particulas;
 }
 
 
-int alocando_vetor_particulas( int *particulas, int n, int np ) {
+particula *alocando_vetor_particulas( particula *particulas, int n, int np ) {
     int i;
-    int * particulas = (int *) malloc( sizeof( int ) * np );
-    for( i=0; i < n; i++ ) {
+    particulas = (particula *) malloc( sizeof( particula ) * np );
+    /*for( i=0; i < n; i++ ) {
         particulas[i] = (particula) malloc( sizeof( particula ) );
-    }
+    }*/
     return particulas;
 }
 
-int checkParedeLados(int posicao) {
+int checkParedeLados(int posicao, int n) {
     return posicao % n;
 }
 
-void hpp ( int *particulas, int *next, int N, int np, int n ) {
+void hpp( int N, int n, particula *particulas, particula *next, int np) {
     int i, j, k;
-    int parade_esquerda
     particula atual;
     int flag;
 
     int indo_esquerda = 1, indo_direita = 2, indo_baixo = 3, indo_cima = 4, vazio = 0;
     int parede_horizontal, parede_vertical;
 
+    #pragma omp parallel for private(j, k, parede_horizontal, parede_vertical, atual, flag)
     for( i=0; i < N; i++ ) {
         for( j=0; j < np; j++) {
             flag = 0;
             atual = particulas[i];
-            parede_horizontal = checkParedeLados(atual.posicao);
+            parede_horizontal = checkParedeLados(atual.posicao, n);
             if(atual.direcao == indo_esquerda && parede_horizontal == 0){
                 atual.direcao == indo_direita;
             }
@@ -128,6 +126,7 @@ void hpp ( int *particulas, int *next, int N, int np, int n ) {
                 }
             }
             if(flag == 0) {
+                
                 if( atual.direcao == indo_esquerda && parede_horizontal > 0 ) {
                     atual.posicao = atual.posicao - 1;
                 }
@@ -141,9 +140,11 @@ void hpp ( int *particulas, int *next, int N, int np, int n ) {
                     atual.posicao = atual.posicao + n;
                 }
             }
-            next[i] = atual;
+            next[i].posicao = atual.posicao;
+            next[i].direcao = atual.direcao;
+            next[i].id = atual.id;
         }
-        particulas = copia_particulas_para_next(particulas, next, n)
+        particulas = copia_particulas_para_next(particulas, next, n);
     }
 }
 
@@ -154,16 +155,37 @@ int main() {
     // curr matriz corrente
     // next matriz obtida a partir de curr
     // np numero de particulas
-
     int n, N, deno;
-    int *particulas, *next;
-    int deno;
+    particula *particulas;
+    particula *next;
+    omp_set_num_threads(4);
+
+    deno = 100;
+    n = 2000;
+
     int np = (n*n)/deno;
+    //printf("\n%d\n", np);
 
     N = 100;
 
     srand( (unsigned)time(0) );
 
-    hpp( N, n, particulas, next, np);
+    particulas = alocando_vetor_particulas( particulas, n, np );
+    next = alocando_vetor_particulas( next, n, np );
+    particulas = iniciar_particulas( particulas, np, n*n );
 
+    /*for(int i = 0; i < np; i++) {
+        printf("\n %d", particulas[i].id);
+        printf("\n %d", particulas[i].posicao);
+        printf("\n %d", particulas[i].direcao);
+    }*/
+
+    double t0, t1, tt;
+
+    t0 = omp_get_wtime();
+    hpp( N, n, particulas, next, np);
+    t1 = omp_get_wtime();
+
+    tt = t1 - t0;
+    printf("Tempo gasto: %g ms.\n", tt);
 }
