@@ -1,125 +1,151 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <time.h>
+#include <omp.h>
 
 
-int ** alocando_matriz_inicial( int n ) {
-    int i, j;
-    int ** curr = (int **) malloc( sizeof( int * ) * n );
-    for( i=0; i < n; i++ ) {
-        curr[i] = (int *)malloc( sizeof( int ) * n );
-        for( j=0; j < n; j++ ) {
-            curr[i][j] = 0;
-        }
+typedef struct ficha_de_aluno {
+    int direcao;
+    int posicao;
+    int id;
+} particula;
+
+
+particula *copia_particulas_para_next( particula * destino_mat, particula * origem_mat, int np ) {
+    for( int i=0; i < np; i++ ) {
+        destino_mat[i] = origem_mat[i];
     }
-    return curr;
+    return destino_mat;
 }
 
 
-int ** iniciar_particulas( int **curr, int n, int np ) {
+int numero_aleatorio( int intervalo, int aux) {
+	return ( rand() % intervalo + aux );
+}
+
+
+particula *iniciar_particulas( particula *particulas, int np, int n_posicoes ) {
     int i, j; 
-    int particulas = 0, valor_particula;
-    while(particulas <= np) {
-        for( i=0; i < n; i++ ) {
-            for( j=0; j < n; j++ ) {
-                if(particulas <= np && curr[i][j] == 0) {
-                    valor_particula = numero_aleatorio();
-                    particulas++;
-                    curr[i][j] = valor_particula;
-                }   
-                if(particulas == np){
-                    return curr;
-                }
-            }
-        }
+    int posicoes = 0;
+
+    for( i=0; i < np; i++ ) {
+        particulas[i].id = i;
+        particulas[i].direcao = numero_aleatorio(5, 1);
+        particulas[i].posicao = numero_aleatorio(n_posicoes, 0);
     }
-    return curr;
+    return particulas;
 }
 
 
-void copia_curr_para_next( int * destino_mat, int * origem_mat, int n ) {
-  memcpy( destino_mat, origem_mat, n * n * sizeof(int) );
+particula *alocando_vetor_particulas( particula *particulas, int n, int np ) {
+    int i;
+    particulas = (particula *) malloc( sizeof( particula ) * np );
+    /*for( i=0; i < n; i++ ) {
+        particulas[i] = (particula) malloc( sizeof( particula ) );
+    }*/
+    return particulas;
 }
 
+int checkParedeLados(int posicao, int n) {
+    return posicao % n;
+}
 
-void hpp( int N, int n, int **curr, int **next, int deno ) {
+void hpp( int N, int n, particula *particulas, particula *next, int np) {
     int i, j, k;
-    int np = (n*n)/deno;
+    particula atual;
+    int flag;
 
     int indo_esquerda = 1, indo_direita = 2, indo_baixo = 3, indo_cima = 4, vazio = 0;
-    int parade_esquerda = 0, parede_direita = (n-1), parede_baixo = (n-1), parede_cima = 0;
+    int parede_horizontal, parede_vertical;
 
-    curr = alocando_matriz_inicial(n);
-    curr = iniciar_particulas( curr, n, np );
-    copia_curr_para_next(curr, next, n)
-
-    for( k=0; k < N; k++ ) {
-        for( i=0; i < n; i++ ) {
-        	for( j=0; j < n; j++ ) {
-                no = curr[i][j];
-        		// se existe particula na posicao
-        		if( no != vazio ) {
-                    // se particula esta indo para esquerda
-                    if( no == indo_esquerda ) {
-                        if( j == parade_esquerda ) {
-                            next[i][j] = indo_direita;
+    #pragma omp parallel for private(j, k, parede_horizontal, parede_vertical, atual, flag)
+    for( i=0; i < N; i++ ) {
+        for( j=0; j < np; j++) {
+            flag = 0;
+            atual = particulas[i];
+            parede_horizontal = checkParedeLados(atual.posicao, n);
+            if(atual.direcao == indo_esquerda && parede_horizontal == 0){
+                atual.direcao == indo_direita;
+            }
+            else if(atual.direcao == indo_direita && parede_horizontal == n-1){
+                atual.direcao == indo_esquerda;
+            }
+            else if(atual.direcao == indo_cima && atual.posicao < n){
+                atual.direcao == indo_baixo;
+            }
+            else if(atual.direcao == indo_baixo && atual.posicao > (n*n)-n-1 ){
+                atual.direcao == indo_cima;
+            }
+            else {
+                for( k=0; k < np; k++) {
+                    if(atual.posicao == particulas[k].posicao && atual.id != particulas[k].id){
+                        if( atual.direcao == indo_esquerda ) {
+                            flag = 1;
+                            particulas[k].direcao == indo_direita;
+                            if(atual.posicao > n-1){
+                                atual.posicao = atual.posicao - n;
+                                atual.direcao = indo_cima;
+                            }
+                            else {
+                                atual.direcao = indo_baixo;
+                            }
                         }
-                        else if( curr[i][j-1] == indo_direita) {
-                            next[i][j] = indo_cima;
-                            next[i][j-1] = indo_baixo;
+                        else if( atual.direcao == indo_direita ) {
+                            flag = 1;
+                            particulas[k].direcao == indo_esquerda;
+                            if(atual.posicao < (n*n)-n){
+                                atual.posicao = atual.posicao + n;
+                                atual.direcao = indo_baixo;
+                            }
+                            else {
+                                atual.direcao = indo_cima;
+                            }
                         }
-                        else if( curr[i][j-1] == vazio) {
-                            next[i][j-1] = no;
+                        else if( atual.direcao == indo_cima ) {
+                            particulas[k].direcao == indo_baixo;
+                            if(parede_horizontal < n-1){
+                                atual.posicao = atual.posicao + 1;
+                                atual.direcao = indo_direita;
+                            }
+                            else {
+                                atual.direcao = indo_esquerda;
+                            }
+                        }
+                        else if( atual.direcao == indo_baixo ) {
+                            particulas[k].direcao == indo_cima;
+                            if(parede_horizontal != 0){
+                                atual.posicao = atual.posicao + 1;
+                                atual.direcao = indo_esquerda;
+                            }
+                            else {
+                                atual.direcao = indo_direita;
+                            }
                         }
                     }
-                    // se particula esta indo para direita
-                    else if( no == indo_direita ) {
-                        if( j == parede_direita ) {
-                            next[i][j] = indo_esquerda;
-                        }
-                        else if( curr[i][j+1] == indo_esquerda) {
-                            next[i][j] = indo_baixo;
-                            next[i][j+1] = indo_cima;
-                        }
-                        else if( curr[i][j+1] == vazio) {
-                            next[i][j+1] = no;
-                        }
-                    }
-                    // se particula esta indo para baixo
-                    else if( no == indo_baixo ) {
-                        if( i == parede_baixo ) {
-                            next[i][j] = indo_cima;
-                        }
-                        else if( curr[i+1][j] == indo_cima) {
-                            next[i][j] = indo_esquerda;
-                            next[i+1][j] = indo_direita;
-                        }
-                        else if( curr[i+1][j] == vazio) {
-                            next[i+1][j] = no;
-                        }
-                    }
-                    // se particula esta indo para cima
-                    else if( no == indo_cima ) {
-                        if( i == parede_cima ) {
-                            next[i][j] = indo_baixo;
-                        }
-                        else if( curr[i-1][j] == indo_baixo) {
-                            next[i][j] = indo_direita;
-                            next[i][j-1] = indo_esquerda;
-                        }
-                        else if( curr[i-1][j] == vazio) {
-                            next[i-1][j] = no;
-                        }
-                    }
-        		}
-        	}
-    	}
+                }
+            }
+            if(flag == 0) {
+                
+                if( atual.direcao == indo_esquerda && parede_horizontal > 0 ) {
+                    atual.posicao = atual.posicao - 1;
+                }
+                else if( atual.direcao == indo_direita && parede_horizontal < n-1 ) {
+                    atual.posicao = atual.posicao + 1;
+                }
+                else if( atual.direcao == indo_cima && atual.posicao > n-1 ) {
+                    atual.posicao = atual.posicao - n;
+                }
+                else if( atual.direcao == indo_baixo && atual.posicao <= n*n-n ) {
+                    atual.posicao = atual.posicao + n;
+                }
+            }
+            next[i].posicao = atual.posicao;
+            next[i].direcao = atual.direcao;
+            next[i].id = atual.id;
+        }
+        particulas = copia_particulas_para_next(particulas, next, n);
     }
-}
-
-
-int numero_aleatorio() {
-	return ( rand() % 5 );
 }
 
 
@@ -128,14 +154,38 @@ int main() {
     // N numero de interacoes
     // curr matriz corrente
     // next matriz obtida a partir de curr
-
+    // np numero de particulas
     int n, N, deno;
-    int **curr, **next;
+    particula *particulas;
+    particula *next;
+    omp_set_num_threads(4);
+
+    deno = 100;
+    n = 2000;
+
+    int np = (n*n)/deno;
+    //printf("\n%d\n", np);
 
     N = 100;
 
     srand( (unsigned)time(0) );
 
-    hpp( N, n, curr, next, deno);
+    particulas = alocando_vetor_particulas( particulas, n, np );
+    next = alocando_vetor_particulas( next, n, np );
+    particulas = iniciar_particulas( particulas, np, n*n );
 
+    /*for(int i = 0; i < np; i++) {
+        printf("\n %d", particulas[i].id);
+        printf("\n %d", particulas[i].posicao);
+        printf("\n %d", particulas[i].direcao);
+    }*/
+
+    double t0, t1, tt;
+
+    t0 = omp_get_wtime();
+    hpp( N, n, particulas, next, np);
+    t1 = omp_get_wtime();
+
+    tt = t1 - t0;
+    printf("Tempo gasto: %g ms.\n", tt);
 }
